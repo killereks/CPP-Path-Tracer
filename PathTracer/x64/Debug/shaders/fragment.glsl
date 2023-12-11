@@ -49,6 +49,14 @@ struct Plane {
 	Material material;
 };
 
+struct Box {
+	vec3 position;
+	vec3 size;
+
+	Material material;
+};
+
+
 HitInfo TraceSphere(Ray ray, Sphere sphere) {
     vec3 oc = ray.origin - sphere.position;
 
@@ -78,6 +86,44 @@ HitInfo TracePlane(Ray ray, Plane plane){
 	return HitInfo(false, vec3(0.0), vec3(0.0), plane.material);
 }
 
+void swap(out float a, out float b){
+	float temp = a;
+	a = b;
+	b = temp;
+}
+
+HitInfo TraceBox(Ray ray, Box box){
+	float tmin = (box.position.x - ray.origin.x) / ray.direction.x;
+	float tmax = (box.position.x + box.size.x - ray.origin.x) / ray.direction.x;
+
+	if (tmin > tmax) swap(tmin, tmax);
+
+	float tymin = (box.position.y - ray.origin.y) / ray.direction.y;
+	float tymax = (box.position.y + box.size.y - ray.origin.y) / ray.direction.y;
+
+	if (tymin > tymax) swap(tymin, tymax);
+
+	if ((tmin > tymax) || (tymin > tmax)) return HitInfo(false, vec3(0.0), vec3(0.0), box.material);
+
+	if (tymin > tmin) tmin = tymin;
+	if (tymax < tmax) tmax = tymax;
+
+	float tzmin = (box.position.z - ray.origin.z) / ray.direction.z;
+	float tzmax = (box.position.z + box.size.z - ray.origin.z) / ray.direction.z;
+
+	if (tzmin > tzmax) swap(tzmin, tzmax);
+
+	if ((tmin > tzmax) || (tzmin > tmax)) return HitInfo(false, vec3(0.0), vec3(0.0), box.material);
+
+	if (tzmin > tmin) tmin = tzmin;
+	if (tzmax < tmax) tmax = tzmax;
+
+	vec3 hitPoint = ray.origin + ray.direction * tmin;
+	vec3 hitNormal = normalize(hitPoint - box.position);
+
+	return HitInfo(true, hitPoint, hitNormal, box.material);
+}
+
 #define MAX_FLOAT 1e8
 
 HitInfo TraceScene(Ray ray) {
@@ -85,16 +131,16 @@ HitInfo TraceScene(Ray ray) {
 	spheres[0] = Sphere(vec3(0.0, 0.5, 5.0), 0.5, Material(vec3(0.2), vec3(0.0), 0.0, 0.9));
 	spheres[1] = Sphere(vec3(0.0, 0.5, 0.0), 0.5, Material(vec3(0.2, 0.5, 0.6), vec3(0.0), 0.0, 0.9));
 	spheres[2] = Sphere(vec3(2.0, 1.0, 4.0), 1.0, Material(vec3(0.8, 0.5, 0.8), vec3(0.8, 0.5, 0.8), 1.0, 0.4));
-	spheres[3] = Sphere(vec3(1.0, 0.5, 3.0), 0.5, Material(vec3(0.2, 0.8, 0.3), vec3(0.0), 0.0, 0.8));
+	spheres[3] = Sphere(vec3(1.0, 0.5, 3.0), 0.5, Material(vec3(0.2, 0.8, 0.3), vec3(0.0), 0.0, 0.3));
 	spheres[4] = Sphere(vec3(3.0, 0.5, 2.0), 0.3, Material(vec3(0.5, 0.3, 0.5), vec3(0.0), 0.0, 0.8));
-	spheres[5] = Sphere(vec3(5.0, 0.5, 0.0), 0.5, Material(vec3(0.2, 0.3, 0.5), vec3(0.0), 0.0, 0.8));
+	spheres[5] = Sphere(vec3(5.0, 0.5, 0.0), 0.5, Material(vec3(0.2, 0.3, 0.5), vec3(0.0), 0.0, 0.2));
 	spheres[6] = Sphere(vec3(3.0, 0.5, 2.0), 0.5, Material(vec3(0.2, 0.3, 0.5), vec3(0.0), 0.0, 0.8));
-	spheres[7] = Sphere(vec3(4.0, 0.5, 1.0), 0.5, Material(vec3(0.2, 0.3, 0.5), vec3(0.0), 0.0, 0.8));
+	spheres[7] = Sphere(vec3(4.0, 0.5, 1.0), 0.5, Material(vec3(0.2, 0.3, 0.5), vec3(0.0), 0.0, 1.0));
 	spheres[8] = Sphere(vec3(5.0, 0.5, 4.0), 0.5, Material(vec3(0.2, 0.3, 0.5), vec3(0.0), 0.0, 0.8));
 
 	Plane planes[2];
-	planes[0] = Plane(vec3(0.0, 0.0, 0.0),  vec3(0.0, 1.0, 0.0),  Material(vec3(0.7, 0.5, 0.8), vec3(0.0), 0.0, 0.5));
-	planes[1] = Plane(vec3(10.0, 0.0, 0.0), vec3(-1.0, 0.0, 0.0), Material(vec3(0.7, 0.5, 0.8), vec3(0.0), 0.0, 0.5));
+	planes[0] = Plane(vec3(0.0, 0.0, 0.0),  vec3(0.0, 1.0, 0.0),  Material(vec3(0.7, 0.5, 0.8), vec3(0.0), 0.0, 0.2));
+	planes[1] = Plane(vec3(10.0, 0.0, 0.0), vec3(-1.0, 0.0, 0.0), Material(vec3(0.7, 0.5, 0.8), vec3(0.0), 0.0, 0.3));
 
     float closestT = MAX_FLOAT;
     HitInfo closestHit = HitInfo(false, vec3(0.0), vec3(0.0), Material(vec3(0.0), vec3(0.0), 0.0, 0.0));
@@ -158,6 +204,16 @@ vec3 RandomDirection(){
 	return randomDirection;
 }
 
+vec3 GetSkyColor(vec3 direction){
+	// gradient lerp based on Y direction
+	float t = 0.5 * (direction.y + 1.0);
+
+	vec3 col1 = vec3(0.8, 0.9, 1.0);
+	vec3 col2 = vec3(0.2, 0.5, 0.6);
+
+	return mix(col1, col2, t);
+}
+
 vec3 TraceRay(Ray ray){
 	vec3 incomingLight = vec3(0.0);
 	vec3 rayColor = vec3(1.0);
@@ -177,9 +233,18 @@ vec3 TraceRay(Ray ray){
 				ray.direction = diffuseDir;
 			}
 
-			vec3 emittedLight = hitInfo.material.emissionColor * hitInfo.material.emissionStrength;
+			vec3 emittedLight = hitInfo.material.color * hitInfo.material.emissionStrength;
 			incomingLight += emittedLight * rayColor;
-			rayColor *= hitInfo.material.color;
+
+			vec3 color = hitInfo.material.color;
+
+			// checkerboard pattern
+			float pos = floor(hitInfo.hitPoint.x) + floor(hitInfo.hitPoint.z);
+			if (int(pos) % 2 == 0){
+				color *= 0.5;
+			}
+
+			rayColor *= color;
 
 			float p = max(rayColor.r, max(rayColor.g, rayColor.b));
 			
@@ -190,6 +255,7 @@ vec3 TraceRay(Ray ray){
 			rayColor /= p;
 
 		} else {
+			incomingLight += GetSkyColor(ray.direction);
 			break;
 		}
 	}
